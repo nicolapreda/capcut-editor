@@ -18,11 +18,19 @@ from .transcribe import transcribe
 VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm", ".m4v"}
 
 
+def _is_video(p: Path) -> bool:
+    # Skip macOS AppleDouble sidecars (e.g. "._C0867.MP4") that share a video
+    # suffix but hold no media — ffprobe exits non-zero on them.
+    if p.name.startswith("._"):
+        return False
+    return p.suffix.lower() in VIDEO_EXTS
+
+
 def gather_inputs(input_path: Path) -> list[Path]:
     if input_path.is_file():
         return [input_path]
     if input_path.is_dir():
-        files = sorted(p for p in input_path.iterdir() if p.suffix.lower() in VIDEO_EXTS)
+        files = sorted(p for p in input_path.iterdir() if _is_video(p))
         if not files:
             raise ValueError(f"Nessun video trovato in {input_path}")
         return files
