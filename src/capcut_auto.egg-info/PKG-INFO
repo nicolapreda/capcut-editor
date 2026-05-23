@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: capcut-auto
+Version: 0.1.0
+Summary: Auto-generate CapCut drafts (vertical 9:16) from videos: silence-cut + subtitles + optional script-driven cuts.
+Requires-Python: >=3.10
+Requires-Dist: faster-whisper>=1.0.0
+Requires-Dist: rapidfuzz>=3.6.0
+Requires-Dist: click>=8.1.0

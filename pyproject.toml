@@ -1,0 +1,22 @@
+[project]
+name = "capcut-auto"
+version = "0.1.0"
+description = "Auto-generate CapCut drafts (vertical 9:16) from videos: silence-cut + subtitles + optional script-driven cuts."
+requires-python = ">=3.10"
+dependencies = [
+    "faster-whisper>=1.0.0",
+    "rapidfuzz>=3.6.0",
+    "click>=8.1.0",
+    "customtkinter>=5.2.0",
+]
+
+[project.scripts]
+capcut-auto = "capcut_auto.cli:main"
+capcut-auto-gui = "capcut_auto.gui:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
