@@ -9,7 +9,7 @@ Da una cartella di video genera un draft già pronto con:
 - SFX di transizione (whoosh/swish/riser) ridistribuiti sui nuovi punti di stacco
 - musica di sottofondo allungata sulla nuova durata
 - testi di enfasi automatici sui numeri / parole impattanti del parlato
-- stabilizzazione opzionale con ffmpeg
+- stabilizzazione opzionale (attiva la funzione integrata di CapCut, nessun re-encode)
 
 ## Setup
 
@@ -19,8 +19,6 @@ python3 -m venv .venv
 ```
 
 Serve `ffmpeg`/`ffprobe` nel PATH (`brew install ffmpeg`).
-Per la stabilizzazione di qualità superiore (opzionale): `brew install ffmpeg` con `vidstab`,
-altrimenti il software usa il filtro `deshake` integrato.
 
 ## GUI
 
@@ -47,7 +45,7 @@ Finestra a 4 tab:
 .venv/bin/capcut-auto /path/cartella --name "Reel 23" \
   --template "CASA RIFUGIO" --pacing fast
 
-# tutto attivo: stabilizza, ridistribuisci SFX, enfasi, modello migliore
+# tutto attivo: stabilizzazione CapCut, ridistribuisci SFX, enfasi, modello migliore
 .venv/bin/capcut-auto /path/cartella --name "Reel 23" \
   --template "CASA RIFUGIO" --pacing aggressive \
   --stabilize --model medium
@@ -64,7 +62,7 @@ Finestra a 4 tab:
   - normal: silenzi ≥ 0.45s tagliati, pad 0.07s
   - fast: silenzi ≥ 0.25s tagliati, pad 0.04s
   - aggressive: silenzi ≥ 0.12s tagliati, no pad finale
-- `--stabilize` — stabilizza i video con vidstab/deshake (risultati in cache).
+- `--stabilize` — attiva la stabilizzazione integrata di CapCut sulle clip (la calcola CapCut all'apertura del progetto, niente re-encode).
 - `--no-sfx-redistribute` — NON spostare gli SFX di transizione sui nuovi tagli.
 - `--no-emphasis` — NON aggiungere testi di enfasi automatici.
 - `--emphasis-count` — quanti testi di enfasi al massimo (default 4).
@@ -88,7 +86,6 @@ src/capcut_auto/
 ├── cuts.py         # pacing presets + silence-cut + script-driven cuts
 ├── subtitles.py    # word chunking
 ├── emphasis.py     # detect emphatic moments (numbers, keywords, !)
-├── stabilize.py    # ffmpeg vidstab + deshake fallback, with cache
 ├── draft.py        # CapCut draft writer (from scratch)
 ├── template.py     # CapCut draft writer (template-based) + SFX redistribution
 └── models.py       # dataclasses

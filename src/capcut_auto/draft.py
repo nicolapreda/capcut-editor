@@ -132,7 +132,9 @@ def _text_material(text: str, font_size: int = 12) -> dict:
 
 # ---------------------------------------------------------------------------
 
-def _video_material(clip) -> dict:
+def _video_material(clip, stable_level: int = 0) -> dict:
+    # stable_level > 0 turns on CapCut's built-in stabilization; matrix_path is
+    # left empty so CapCut computes the motion analysis itself on import.
     return {
         "id": _uid(), "type": "video", "duration": _us(clip.duration),
         "path": str(clip.path), "media_path": str(clip.path), "local_id": "",
@@ -149,7 +151,11 @@ def _video_material(clip) -> dict:
         },
         "crop_ratio": "free", "crop_scale": 1.0,
         "audio_fade": None, "extra_type_option": 0,
-        "stable": {"stable_level": 0, "matrix_path": "", "time_range": {"start": 0, "duration": 0}},
+        "stable": {
+            "stable_level": stable_level,
+            "matrix_path": "",
+            "time_range": {"start": 0, "duration": _us(clip.duration) if stable_level else 0},
+        },
         "matting": {
             "flag": 0, "path": "", "interactiveTime": [],
             "has_use_quick_brush": False, "strokes": [],
@@ -249,6 +255,7 @@ def build_draft(
     canvas_w: int = 1080,
     canvas_h: int = 1920,
     fps: float = 30.0,
+    stable_level: int = 0,
     projects_dir: Path = CAPCUT_PROJECTS_DIR,
 ) -> Path:
     """Write the draft folder and return its path."""
@@ -285,7 +292,7 @@ def build_draft(
     for seg in timeline:
         clip = seg.keep.source
         if clip.path not in src_to_mat:
-            vm = _video_material(clip)
+            vm = _video_material(clip, stable_level=stable_level)
             materials["videos"].append(vm)
             src_to_mat[clip.path] = vm["id"]
 

@@ -9,13 +9,16 @@ from .draft import CAPCUT_PROJECTS_DIR, build_draft
 from .emphasis import detect_emphasis
 from .models import TimelineSegment
 from .probe import probe
-from .stabilize import stabilize
 from .subtitles import build_subtitles
 from .template import build_from_template
 from .transcribe import transcribe
 
 
 VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm", ".m4v"}
+
+# CapCut stabilization strength applied when stabilization is requested.
+# 0 = off; 1 is CapCut's "recommended" level. Users can retune it in CapCut.
+CAPCUT_STABILIZE_LEVEL = 1
 
 
 def _is_video(p: Path) -> bool:
@@ -68,18 +71,18 @@ def run_pipeline(
     log(f"→ {len(inputs)} input · modello={model} · lingua={language} · pacing={pacing_obj.name}")
     if template:
         log(f"→ template: {template}")
+    stable_level = CAPCUT_STABILIZE_LEVEL if stabilize_clips else 0
     if stabilize_clips:
-        log("→ stabilizzazione: ON")
+        log("→ stabilizzazione CapCut: ON (calcolata da CapCut all'import)")
 
     canvas = (1080, 1920) if fmt == "vertical" else (1920, 1080)
 
-    # 1. (optional) stabilize originals, then probe + transcribe
+    # 1. probe + transcribe
     clips = []
     for p in inputs:
-        path = stabilize(p, log=log) if stabilize_clips else p
-        log(f"  • probing  {path.name}")
-        c = probe(path)
-        log(f"  • trascrivo  {path.name} ({c.duration:.1f}s)…")
+        log(f"  • probing  {p.name}")
+        c = probe(p)
+        log(f"  • trascrivo  {p.name} ({c.duration:.1f}s)…")
         transcribe(c, model_name=model, language=language)
         log(f"    → {len(c.words)} parole")
         clips.append(c)
@@ -119,11 +122,13 @@ def run_pipeline(
             timeline=timeline, subtitles=subs,
             emphasis=emphasis or None,
             redistribute_sfx_enabled=redistribute_sfx_enabled,
+            stable_level=stable_level,
             projects_dir=projects_dir,
         )
     else:
         out = build_draft(name=name, timeline=timeline, subtitles=subs,
                           canvas_w=canvas[0], canvas_h=canvas[1],
+                          stable_level=stable_level,
                           projects_dir=projects_dir)
     log(f"✓ Draft scritto: {out}")
     return out

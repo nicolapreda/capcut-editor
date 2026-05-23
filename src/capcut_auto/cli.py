@@ -19,7 +19,7 @@ from .pipeline import run_pipeline
 @click.option("--pacing", type=click.Choice(["normal", "fast", "aggressive"]),
               default="fast", help="Quanto stretti i tagli (default: fast).")
 @click.option("--stabilize", "stabilize_clips", is_flag=True,
-              help="Stabilizza i video con ffmpeg vidstab prima di importarli.")
+              help="Attiva la stabilizzazione integrata di CapCut sulle clip.")
 @click.option("--no-sfx-redistribute", "redistribute_sfx_enabled", flag_value=False,
               default=True, help="NON ridistribuire gli SFX sui nuovi tagli.")
 @click.option("--no-emphasis", "add_emphasis", flag_value=False, default=True,

@@ -325,6 +325,7 @@ def build_from_template(
     subtitles: list[SubtitleChunk],
     emphasis: list[Emphasis] | None = None,
     redistribute_sfx_enabled: bool = True,
+    stable_level: int = 0,
     projects_dir: Path = CAPCUT_PROJECTS_DIR,
 ) -> Path:
     src = projects_dir / template_name
@@ -352,7 +353,7 @@ def build_from_template(
     for ts in timeline:
         clip = ts.keep.source
         if clip.path not in src_to_mat:
-            vm = _video_material(clip)
+            vm = _video_material(clip, stable_level=stable_level)
             info["materials"]["videos"].append(vm)
             src_to_mat[clip.path] = vm["id"]
 

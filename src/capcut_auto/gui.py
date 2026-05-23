@@ -193,10 +193,10 @@ class App(ctk.CTk):
         row += 1
 
         self.stabilize_var = ctk.BooleanVar(value=False)
-        ctk.CTkSwitch(tab, text="Stabilizza le clip con ffmpeg (vidstab)",
+        ctk.CTkSwitch(tab, text="Attiva la stabilizzazione integrata di CapCut",
                       variable=self.stabilize_var).grid(row=row, column=0, sticky="w", padx=14, pady=(8, 4))
         row += 1
-        ctk.CTkLabel(tab, text="Più lento ma ottimo per riprese a mano. Risultati in cache, rifare costa zero.",
+        ctk.CTkLabel(tab, text="Ottima per riprese a mano. È CapCut a calcolarla all'apertura del progetto.",
                      text_color=("gray55", "gray55"),
                      font=ctk.CTkFont(size=11)).grid(row=row, column=0, sticky="w", padx=36, pady=(0, 10))
         row += 1
