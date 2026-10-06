@@ -7,12 +7,18 @@ dependencies = [
     "faster-whisper>=1.0.0",
     "rapidfuzz>=3.6.0",
     "click>=8.1.0",
-    "customtkinter>=5.2.0",
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
 ]
+
+[project.optional-dependencies]
+ai = ["anthropic>=0.39.0"]
+gui = ["customtkinter>=5.2.0"]
 
 [project.scripts]
 capcut-auto = "capcut_auto.cli:main"
 capcut-auto-gui = "capcut_auto.gui:main"
+capcut-auto-server = "capcut_auto.server:run"
 
 [build-system]
 requires = ["setuptools>=68"]

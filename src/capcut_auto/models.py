@@ -31,6 +31,8 @@ class KeepInterval:
     src_start: float          # seconds in source file
     src_end: float
     words: list[Word] = field(default_factory=list)  # words inside this interval
+    muted: bool = False       # b-roll: its own audio (off-camera voices) is silenced
+    note: str = ""            # b-roll: what the shot shows, as described by the AI
 
     @property
     def duration(self) -> float:
@@ -46,7 +48,22 @@ class TimelineSegment:
 
 
 @dataclass
+class CoverShot:
+    """A b-roll stretch laid over the talking footage (speech audio keeps playing)."""
+    source: SourceClip
+    src_start: float          # seconds in the b-roll clip
+    src_end: float
+    timeline_start: float     # seconds in the final timeline
+    note: str = ""            # what it shows
+
+    @property
+    def duration(self) -> float:
+        return self.src_end - self.src_start
+
+
+@dataclass
 class SubtitleChunk:
-    text: str
+    text: str                 # as shown on screen
     timeline_start: float     # seconds in final timeline
     timeline_end: float
+    words: list[Word] = field(default_factory=list)  # the spoken words, timed on the final timeline

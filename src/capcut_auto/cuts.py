@@ -31,9 +31,13 @@ class Pacing:
     min_keep_dur: float  # discard kept regions shorter than this (filler "uhm" etc.)
 
 
-PACING_NORMAL = Pacing("normal",     min_silence=0.45, head_pad=0.07, tail_pad=0.07, min_keep_dur=0.15)
-PACING_FAST = Pacing("fast",         min_silence=0.25, head_pad=0.04, tail_pad=0.02, min_keep_dur=0.10)
-PACING_AGGRESSIVE = Pacing("aggressive", min_silence=0.12, head_pad=0.02, tail_pad=0.0, min_keep_dur=0.08)
+# Whisper marks word.start LATER than the perceptual start (adds silence before
+# the word) and word.end EARLIER than the perceptual end (clips the tail of the
+# word). So we keep head_pad small/zero (no extra silence pre-word) and a much
+# bigger tail_pad (extends past Whisper's end so the last consonant survives).
+PACING_NORMAL = Pacing("normal",         min_silence=0.40, head_pad=0.03, tail_pad=0.16, min_keep_dur=0.15)
+PACING_FAST = Pacing("fast",             min_silence=0.22, head_pad=0.01, tail_pad=0.12, min_keep_dur=0.10)
+PACING_AGGRESSIVE = Pacing("aggressive", min_silence=0.10, head_pad=0.0,  tail_pad=0.08, min_keep_dur=0.08)
 
 PACING_BY_NAME = {p.name: p for p in (PACING_NORMAL, PACING_FAST, PACING_AGGRESSIVE)}
 
@@ -103,35 +107,73 @@ def _norm(s: str) -> str:
     return _NORM.sub(" ", s.lower()).strip()
 
 
+# Spoken lines in a "real" script are wrapped in quotes; everything else
+# (headings like "HOOK (0-3 sec)", stage directions, metadata) is NOT spoken.
+# Match straight ("..."), curly (“...”) and guillemet («...») double quotes.
+_QUOTE_PATTERNS = [
+    re.compile(r'"([^"]{2,})"'),
+    re.compile(r'“([^”]{2,})”'),
+    re.compile(r'«([^»]{2,})»'),
+]
+
+
+def _extract_quoted_lines(script: str) -> list[str]:
+    """Pull out only the quoted (spoken) spans, in document order.
+
+    Filters out incidental single quoted words (e.g. a direction like
+    Entri nella "stanza") by requiring ≥ 2 words.
+    """
+    hits: list[tuple[int, str]] = []
+    for pat in _QUOTE_PATTERNS:
+        for m in pat.finditer(script):
+            candidate = m.group(1).strip()
+            if len(candidate.split()) >= 2:
+                hits.append((m.start(), candidate))
+    hits.sort(key=lambda x: x[0])
+    return [t for _pos, t in hits]
+
+
 def _script_lines(script: str) -> list[str]:
+    """Turn a script into matchable lines.
+
+    If the script contains quoted dialogue (a structured screenplay-style doc),
+    use ONLY the quoted lines — headings, stage directions and metadata are
+    ignored. Otherwise fall back to splitting every line on sentence boundaries.
+    """
+    quoted = _extract_quoted_lines(script)
+    source_blocks = quoted if len(quoted) >= 2 else script.splitlines()
+
     lines: list[str] = []
-    for raw in script.splitlines():
+    for raw in source_blocks:
         for part in re.split(r"(?<=[.!?])\s+", raw):
-            t = part.strip()
+            t = part.strip().strip('"“”«»')
             if len(t) >= 3:
                 lines.append(t)
     return lines
 
 
-def cuts_from_script(
-    clip: SourceClip,
-    script: str,
-    pacing: Pacing = PACING_FAST,
-    min_match: float = 60.0,
-) -> list[KeepInterval]:
-    """For each script line, find the best contiguous transcript window, then apply tight cuts."""
+def match_script_to_transcript(
+    clip: SourceClip, script: str, min_match: float = 60.0,
+) -> tuple[list[tuple[int, int]], list[str]]:
+    """Find which transcript word-spans correspond to which script lines.
+
+    Returns:
+        merged_spans: list of (start_idx, end_idx_inclusive) word-spans that matched
+        unmatched_lines: script lines whose best fuzzy-match score was below min_match
+    """
     if not clip.words:
-        return []
+        return [], _script_lines(script)
     lines = _script_lines(script)
     if not lines:
-        return cuts_silence(clip, pacing)
+        return [], []
 
     words = clip.words
     n = len(words)
     norm_words = [_norm(w.text) for w in words]
-    kept_word_spans: list[tuple[int, int]] = []  # (start_idx, end_idx_inclusive)
+    kept_word_spans: list[tuple[int, int]] = []
+    unmatched: list[str] = []
 
-    cursor = 0  # progress monotonically through the transcript
+    cursor = 0
     for line in lines:
         target = _norm(line)
         target_wc = max(1, len(target.split()))
@@ -156,6 +198,8 @@ def cuts_from_script(
             _, si, ei = best
             kept_word_spans.append((si, ei))
             cursor = ei + 1
+        else:
+            unmatched.append(line)
 
     kept_word_spans.sort()
     merged: list[tuple[int, int]] = []
@@ -164,6 +208,22 @@ def cuts_from_script(
             merged[-1] = (merged[-1][0], max(merged[-1][1], e))
         else:
             merged.append((s, e))
+    return merged, unmatched
+
+
+def cuts_from_script(
+    clip: SourceClip,
+    script: str,
+    pacing: Pacing = PACING_FAST,
+    min_match: float = 60.0,
+) -> list[KeepInterval]:
+    """For each script line, find the best contiguous transcript window, then apply tight cuts."""
+    if not clip.words:
+        return []
+    merged, _unmatched = match_script_to_transcript(clip, script, min_match=min_match)
+    if not merged:
+        return cuts_silence(clip, pacing)
+    words = clip.words
 
     # Apply tight pacing within each matched span
     out: list[KeepInterval] = []

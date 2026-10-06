@@ -35,11 +35,50 @@ class Emphasis:
     score: int
 
 
-def _phrase_around(words, idx: int, span: int = 2) -> str:
-    """Pick ±span words around idx to form a short phrase."""
-    lo = max(0, idx - span)
-    hi = min(len(words), idx + span + 1)
-    return " ".join(w.text.strip(_PUNCT_STRIP) for w in words[lo:hi]).strip()
+def _clause_bounds(words, idx: int, silence_thresh: float = 0.35) -> tuple[int, int]:
+    """Find the indices [lo, hi] (inclusive) of the smallest clause that
+    contains words[idx], where a clause is delimited by silences ≥ silence_thresh
+    or by terminal punctuation on a preceding/following word."""
+    lo = idx
+    while lo > 0:
+        gap = words[lo].start - words[lo - 1].end
+        if gap >= silence_thresh:
+            break
+        prev_text = words[lo - 1].text.strip()
+        if prev_text.endswith((".", "!", "?")):
+            break
+        lo -= 1
+    hi = idx
+    while hi < len(words) - 1:
+        gap = words[hi + 1].start - words[hi].end
+        if gap >= silence_thresh:
+            break
+        cur_text = words[hi].text.strip()
+        if cur_text.endswith((".", "!", "?")):
+            break
+        hi += 1
+    return lo, hi
+
+
+def _meaningful_phrase(words, idx: int, max_words: int = 4,
+                       silence_thresh: float = 0.35) -> str:
+    """Extract a short meaningful phrase around the emphasis word at `idx`.
+
+    Stays inside the surrounding clause (silence-bounded), caps at max_words,
+    and tries to center on the trigger word."""
+    lo, hi = _clause_bounds(words, idx, silence_thresh)
+    if hi - lo + 1 <= max_words:
+        chosen = words[lo : hi + 1]
+    else:
+        # center on idx, prefer extending forward (subject usually before number)
+        forward = max_words - 1
+        back = 0
+        s = max(lo, idx - back)
+        e = min(hi, s + max_words - 1)
+        if e - s + 1 < max_words:
+            s = max(lo, e - max_words + 1)
+        chosen = words[s : e + 1]
+    return " ".join(w.text.strip(_PUNCT_STRIP) for w in chosen).strip()
 
 
 def detect_emphasis(timeline: list[TimelineSegment], max_count: int = 4,
@@ -67,8 +106,8 @@ def detect_emphasis(timeline: list[TimelineSegment], max_count: int = 4,
             if score < 3:
                 continue
 
-            phrase = _phrase_around(words, i, span=1).upper()
-            if not phrase:
+            phrase = _meaningful_phrase(words, i, max_words=4).upper()
+            if not phrase or len(phrase) < 2:
                 continue
             # display time: from the emphasis word, hold for ~1.5–2s
             start = max(0.0, w.start + offset - 0.1)

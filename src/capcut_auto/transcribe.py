@@ -19,7 +19,7 @@ def _get_model(name: str):
     return _MODEL_CACHE[name]
 
 
-def transcribe(clip: SourceClip, model_name: str = "small", language: str | None = "it") -> None:
+def transcribe(clip: SourceClip, model_name: str = "large-v3", language: str | None = "it") -> None:
     """Populate clip.words with word-level timestamps."""
     model = _get_model(model_name)
 

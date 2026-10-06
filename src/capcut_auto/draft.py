@@ -10,7 +10,7 @@ import time
 import uuid
 from pathlib import Path
 
-from .models import US, SubtitleChunk, TimelineSegment
+from .models import US, CoverShot, KeepInterval, SubtitleChunk, TimelineSegment
 
 
 # Default CapCut projects directory on macOS
@@ -171,7 +171,7 @@ def _video_segment(seg: TimelineSegment, material_id: str, extra_refs: list[str]
         "desc": "", "state": 0, "speed": 1.0,
         "is_loop": False, "is_tone_modify": False, "reverse": False,
         "intensifies_audio": False, "cartoon": False,
-        "volume": 1.0, "last_nonzero_volume": 1.0,
+        "volume": 0.0 if seg.keep.muted else 1.0, "last_nonzero_volume": 1.0,
         "clip": {
             "scale": {"x": 1.0, "y": 1.0}, "rotation": 0.0,
             "transform": {"x": 0.0, "y": 0.0},
@@ -242,6 +242,39 @@ def _text_segment(start_us: int, dur_us: int, material_id: str, extra_refs: list
 
 # ---------------------------------------------------------------------------
 
+def cover_track(covers: list[CoverShot], materials: dict, src_to_mat: dict[Path, str],
+                render_index: int, track_index: int) -> dict:
+    """An overlay video track holding the b-roll cover shots.
+
+    Mirrors what CapCut writes for a second video track: `flag: 2`, a
+    render_index above the main track's 0, and each shot muted so the speech
+    underneath keeps playing.
+    """
+    segments = []
+    for c in covers:
+        if c.source.path not in src_to_mat:
+            vm = _video_material(c.source)
+            materials["videos"].append(vm)
+            src_to_mat[c.source.path] = vm["id"]
+        aux = {"speeds": _default_speed(), "placeholder_infos": _default_placeholder(),
+               "canvases": _default_canvas(), "material_animations": _default_anim(),
+               "sound_channel_mappings": _default_sound_mapping(),
+               "vocal_separations": _default_vocal_sep()}
+        for bucket, m in aux.items():
+            materials.setdefault(bucket, []).append(m)
+        shot = TimelineSegment(
+            keep=KeepInterval(source=c.source, src_start=c.src_start, src_end=c.src_end,
+                              muted=True, note=c.note),
+            timeline_start=c.timeline_start, timeline_end=c.timeline_start + c.duration,
+        )
+        seg = _video_segment(shot, src_to_mat[c.source.path], [m["id"] for m in aux.values()])
+        seg["render_index"] = render_index
+        seg["track_render_index"] = track_index
+        segments.append(seg)
+    return {"id": _uid(), "type": "video", "attribute": 0, "flag": 2,
+            "segments": segments, "is_default_name": True, "name": ""}
+
+
 def build_draft(
     name: str,
     timeline: list[TimelineSegment],
@@ -250,6 +283,7 @@ def build_draft(
     canvas_h: int = 1920,
     fps: float = 30.0,
     projects_dir: Path = CAPCUT_PROJECTS_DIR,
+    covers: list[CoverShot] | None = None,
 ) -> Path:
     """Write the draft folder and return its path."""
     draft_id = _uid()
@@ -323,6 +357,9 @@ def build_draft(
     ]
     if text_segments:
         tracks.append({"id": _uid(), "type": "text", "attribute": 0, "flag": 0, "segments": text_segments, "is_default_name": True, "name": ""})
+    if covers:
+        tracks.append(cover_track(covers, materials, src_to_mat,
+                                  render_index=1, track_index=len(tracks)))
 
     total_dur_us = _us(timeline[-1].timeline_end) if timeline else 0
 
@@ -398,8 +435,10 @@ def build_draft(
     # ---- write draft_meta_info.json (so CapCut shows it in the UI) ----
     now_us = int(time.time() * 1_000_000)
     meta_materials_values = []
+    sources = {s.keep.source.path: s.keep.source for s in timeline}
+    sources.update({c.source.path: c.source for c in covers or []})
     for path, mat_id in src_to_mat.items():
-        clip = next(s.keep.source for s in timeline if s.keep.source.path == path)
+        clip = sources[path]
         meta_materials_values.append({
             "ai_group_type": "", "create_time": int(time.time()),
             "duration": _us(clip.duration), "enter_from": 0, "extra_info": clip.path.name,

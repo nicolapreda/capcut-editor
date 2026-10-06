@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+build/
+dist/
+
+# Electron / Node
+desktop/node_modules/
+desktop/dist/
+
+# PyInstaller sidecar build output
+backend-build/
+*.spec
+
+# Cloud backend
+cloud/.venv/
+cloud/.env
+cloud/*.db
+
+# OS
+.DS_Store
