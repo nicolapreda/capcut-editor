@@ -10,8 +10,8 @@ Design
   us plain filesystem paths.
 
 Run standalone for development:
-    capcut-auto-server            # binds 127.0.0.1:8765
-    capcut-auto-server --port 9000
+    capwiz-server            # binds 127.0.0.1:8765
+    capwiz-server --port 9000
 """
 from __future__ import annotations
 
@@ -125,7 +125,7 @@ class BatchRequest(GenerateRequest):
 # App
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="CapCut Auto API", version="0.1.0")
+app = FastAPI(title="CapWiz API", version="0.1.0")
 
 # The Electron renderer runs from a file:// or localhost origin; allow all in
 # this local-only server (it binds 127.0.0.1, never exposed to the network).
@@ -389,7 +389,7 @@ async def job_logs(websocket: WebSocket, job_id: str) -> None:
 # ---------------------------------------------------------------------------
 
 def run() -> None:
-    parser = argparse.ArgumentParser(description="CapCut Auto backend server")
+    parser = argparse.ArgumentParser(description="CapWiz backend server")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()

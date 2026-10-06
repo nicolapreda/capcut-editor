@@ -43,7 +43,7 @@ def _list_templates(projects_dir: Path) -> list[str]:
 class App(ctk.CTk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("CapCut Auto · Generatore Reel")
+        self.title("CapWiz · Generatore Reel")
         self.geometry("980x820")
         self.minsize(900, 720)
 
@@ -53,7 +53,7 @@ class App(ctk.CTk):
         # --- header -----------------------------------------------------------
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.pack(fill="x", padx=18, pady=(18, 6))
-        ctk.CTkLabel(header, text="CapCut Auto",
+        ctk.CTkLabel(header, text="CapWiz",
                      font=ctk.CTkFont(size=24, weight="bold")).pack(side="left")
         ctk.CTkLabel(header, text="Reel automatici da una cartella di video",
                      font=ctk.CTkFont(size=13),

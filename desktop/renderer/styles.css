@@ -40,7 +40,8 @@ html, body {
   background: var(--bg-elevated);
   -webkit-app-region: drag;
 }
-.topbar .brand { font-weight: 650; font-size: 15px; letter-spacing: .2px; }
+.topbar .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 650; font-size: 15px; letter-spacing: .2px; }
+.topbar .brand img { width: 26px; height: 26px; }
 .topbar .brand span { color: var(--accent); }
 .topbar .spacer { flex: 1; }
 .pill {
@@ -71,6 +72,7 @@ html, body {
   display: flex; flex-direction: column; gap: 12px;
 }
 .gate-logo { font-size: 20px; font-weight: 680; margin-bottom: 6px; }
+.gate-logo img { display: block; width: 72px; height: 72px; margin: 0 auto 10px; }
 .gate-logo span { color: var(--accent); }
 .gate-card h2 { font-size: 17px; font-weight: 640; }
 .gate-text { font-size: 13px; color: var(--text-dim); line-height: 1.5; }

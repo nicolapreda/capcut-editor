@@ -1,4 +1,4 @@
-"""CapCut Auto — cloud licensing backend.
+"""CapWiz — cloud licensing backend.
 
 Accounts (email/password) + Stripe subscriptions + license validation.
 Deploy this separately (Railway / Fly / Render / a VPS). The desktop app calls
@@ -17,7 +17,7 @@ from .config import settings
 from .db import get_session, init_db
 from .models import User
 
-app = FastAPI(title="CapCut Auto — Cloud", version="0.1.0")
+app = FastAPI(title="CapWiz — Cloud", version="0.1.0")
 
 # Desktop clients call from a file:// (Origin: null) or localhost origin.
 # Auth is via Bearer tokens (no cookies), so a permissive origin policy is safe.

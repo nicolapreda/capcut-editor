@@ -1,7 +1,7 @@
 {
-  "name": "capcut-auto-desktop",
+  "name": "capwiz-desktop",
   "version": "0.1.0",
-  "description": "CapCut Auto — desktop app (Electron shell + Python sidecar)",
+  "description": "CapWiz — desktop app (Electron shell + Python sidecar)",
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
@@ -14,17 +14,19 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "it.predanicola.capcutauto",
-    "productName": "CapCut Auto",
+    "appId": "it.predanicola.capwiz",
+    "productName": "CapWiz",
     "files": [
       "electron/**/*",
       "renderer/**/*"
     ],
     "mac": {
       "category": "public.app-category.video",
+      "icon": "build/icon.icns",
       "target": ["dmg"]
     },
     "win": {
+      "icon": "build/icon.ico",
       "target": ["nsis"]
     }
   }

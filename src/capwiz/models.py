@@ -33,6 +33,7 @@ class KeepInterval:
     words: list[Word] = field(default_factory=list)  # words inside this interval
     muted: bool = False       # b-roll: its own audio (off-camera voices) is silenced
     note: str = ""            # b-roll: what the shot shows, as described by the AI
+    block: int = 0            # speech: number of the "keep" block it belongs to (1-based)
 
     @property
     def duration(self) -> float:

@@ -355,8 +355,16 @@ def replace_intro_titles(info: dict, intro_title: str,
     chunks: list[str]
     if len(parts) <= n:
         chunks = parts + [""] * (n - len(parts))
-    else:
+    elif len(parts) <= 4:
         chunks = parts[: n - 1] + [" ".join(parts[n - 1:])]
+    else:
+        # a long title (one dictated by the script): spread it evenly over the slots
+        size, extra = divmod(len(parts), n)
+        chunks, i = [], 0
+        for k in range(n):
+            take = size + (1 if k < extra else 0)
+            chunks.append(" ".join(parts[i:i + take]))
+            i += take
 
     # build mat_id → list[segment] index so we can also reset segment clips
     seg_index: dict[str, list[dict]] = {}
@@ -1106,13 +1114,38 @@ def build_from_template(
             info["materials"]["texts"].append(new_inner)
             em_track["segments"].append(seg)
         info["tracks"].append(em_track)
+    elif emphasis:
+        log(f"⚠ I {len(emphasis)} testi a schermo NON sono stati inseriti: il template non "
+            f"ha testi (oltre ai sottotitoli) da cui copiare lo stile.")
 
-    # ---- intro title customization ----
+    # ---- intro title ----
+    # Written into the template's own opening title when it has one; otherwise
+    # added as an on-screen text at the start, so it never silently disappears.
     own_track_ids = {main_video["id"]} | caption_ids
     if emphasis_track_id:
         own_track_ids.add(emphasis_track_id)
     if intro_title:
-        replace_intro_titles(info, intro_title, exclude_track_ids=own_track_ids)
+        slots = replace_intro_titles(info, intro_title, exclude_track_ids=own_track_ids)
+        if slots:
+            log(f"Titolo iniziale «{intro_title}» scritto al posto del titolo d'apertura "
+                f"del template.")
+        elif overlay_style is not None and timeline:
+            total_us = _us(timeline[-1].timeline_end)
+            first_em = min((_us(em.timeline_start) for em in emphasis or []), default=total_us)
+            dur_us = max(1, min(_us(2.5), total_us, max(_us(1.0), first_em)))
+            seg, _, new_inner = _clone_overlay_text(overlay_style, intro_title, 0, dur_us)
+            seg["clip"] = copy.deepcopy(_emphasis_clip())
+            seg["extra_material_refs"] = []
+            title_track = _emphasis_track()
+            title_track["segments"].append(seg)
+            info["materials"]["texts"].append(new_inner)
+            info["tracks"].append(title_track)
+            own_track_ids.add(title_track["id"])
+            log(f"Il template non ha un titolo nei primi 3 secondi: «{intro_title}» aggiunto "
+                f"come testo a schermo all'inizio ({dur_us / 1e6:.1f}s, stile dei testi del template).")
+        else:
+            log(f"⚠ Titolo iniziale «{intro_title}» NON inserito: il template non ha né un "
+                f"titolo d'apertura né altri testi da cui copiare lo stile.")
 
     # ---- optionally clear the template's residual text overlays
     # (intros that weren't replaced, "3 2 1 vai" countdowns, mid-video labels) ----
@@ -1149,11 +1182,8 @@ def build_from_template(
     # overlay / audio / extra track segment that starts past the end is dropped;
     # anything straddling the end is truncated.
     new_total_us = _us(timeline[-1].timeline_end) if timeline else 0
-    _own_tracks = {main_video["id"]} | caption_ids
-    if emphasis_track_id:
-        _own_tracks.add(emphasis_track_id)
     for tr in info["tracks"]:
-        if tr["id"] in _own_tracks:
+        if tr["id"] in own_track_ids:
             continue
         kept: list[dict] = []
         for s in tr["segments"]:

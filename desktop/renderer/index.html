@@ -4,12 +4,13 @@
   <meta charset="utf-8" />
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; connect-src http://127.0.0.1:8765 ws://127.0.0.1:8765 http://127.0.0.1:8799 https:; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
-  <title>CapCut Auto</title>
+  <title>CapWiz</title>
+  <link rel="icon" href="logo.png" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="topbar">
-    <div class="brand">CapCut <span>Auto</span></div>
+    <div class="brand"><img src="logo.png" alt="" />Cap<span>Wiz</span></div>
     <div class="spacer"></div>
     <span class="tb-email" id="tb-email" hidden></span>
     <button class="btn-link" id="tb-account" hidden>Gestisci abbonamento</button>
@@ -22,7 +23,7 @@
   <!-- ==================== LOGIN ==================== -->
   <div id="view-auth" class="view gate-view" hidden>
     <div class="gate-card">
-      <div class="gate-logo">CapCut <span>Auto</span></div>
+      <div class="gate-logo"><img src="logo.png" alt="" />Cap<span>Wiz</span></div>
       <h2 id="auth-title">Accedi</h2>
       <input type="text" id="auth-email" placeholder="Email" autocomplete="username" />
       <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" />
@@ -38,9 +39,9 @@
   <!-- ==================== SUBSCRIBE ==================== -->
   <div id="view-subscribe" class="view gate-view" hidden>
     <div class="gate-card">
-      <div class="gate-logo">CapCut <span>Auto</span></div>
+      <div class="gate-logo"><img src="logo.png" alt="" />Cap<span>Wiz</span></div>
       <h2>Abbonamento richiesto</h2>
-      <p class="gate-text">Per usare CapCut Auto serve un abbonamento attivo.</p>
+      <p class="gate-text">Per usare CapWiz serve un abbonamento attivo.</p>
       <div class="gate-info" id="sub-info"></div>
       <button class="btn-primary-sm gate-btn" id="btn-subscribe">Abbonati</button>
       <button class="btn-secondary gate-btn" id="btn-recheck">Ho già pagato — ricontrolla</button>
@@ -53,7 +54,7 @@
     <div class="home-header">
       <div>
         <h1>I tuoi progetti</h1>
-        <p class="home-sub">Progetti creati con CapCut Auto — apri o duplica con un click.</p>
+        <p class="home-sub">Progetti creati con CapWiz — apri o duplica con un click.</p>
       </div>
       <div class="home-actions">
         <button class="btn-secondary" id="btn-config-ai">⚙&nbsp; Configura AI</button>

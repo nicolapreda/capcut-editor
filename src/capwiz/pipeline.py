@@ -35,7 +35,7 @@ from .subtitles import build_subtitles
 from .template import (build_from_template, template_blueprint, template_sound_inventory,
                        template_subtitle_look)
 from .transcribe import transcribe
-from .vision import make_strip
+from .vision import light_changes, make_strip
 
 
 VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm", ".m4v"}
@@ -105,6 +105,48 @@ def read_script(path: Path) -> str:
         except UnicodeDecodeError:
             continue
     return raw.decode("utf-8", errors="replace")
+
+
+def weave_inserts(timeline: list[TimelineSegment], inserts: list[tuple]
+                  ) -> tuple[list[TimelineSegment], Callable[[float], float]]:
+    """Put the stand-alone b-roll shots between the speech blocks.
+
+    `inserts` are (b-roll, from, to, before_block, why): each goes right before
+    the first segment of that speech block (a block number past the last one
+    means after the speech). Returns the new timeline and a function mapping a
+    time on the speech-only cut to the same moment on the new timeline.
+    """
+    out: list[TimelineSegment] = []
+    moved: list[tuple[float, float, float]] = []       # old start, old end, new start
+    cursor = 0.0
+
+    def place(block: int, at_end: bool = False) -> None:
+        nonlocal cursor
+        for b, start, end, before, _why in inserts:
+            if before > block if at_end else before == block:
+                k = KeepInterval(source=b.clip, src_start=start, src_end=end,
+                                 muted=True, note=b.look.shows)
+                out.append(TimelineSegment(keep=k, timeline_start=cursor,
+                                           timeline_end=cursor + k.duration))
+                cursor += k.duration
+
+    seen: set[int] = set()
+    for ts in timeline:
+        if ts.keep.block not in seen:
+            seen.add(ts.keep.block)
+            place(ts.keep.block)
+        moved.append((ts.timeline_start, ts.timeline_end, cursor))
+        dur = ts.timeline_end - ts.timeline_start
+        out.append(TimelineSegment(keep=ts.keep, timeline_start=cursor, timeline_end=cursor + dur))
+        cursor += dur
+    place(max(seen, default=0), at_end=True)
+
+    def shift(t: float) -> float:
+        for old_start, old_end, new_start in moved:
+            if t < old_end:
+                return new_start + max(0.0, t - old_start)
+        return cursor
+    return out, shift
 
 
 @dataclass
@@ -200,16 +242,21 @@ def _run(rep: Report, input_path, name, template, script, model, language,
 
     # 2 — the AI looks at every clip: talking take, b-roll or unusable?
     rep.section("2 · L'AI GUARDA LE CLIP")
-    strip_dir = Path(tempfile.mkdtemp(prefix="capcut_auto_frames_"))
+    strip_dir = Path(tempfile.mkdtemp(prefix="capwiz_frames_"))
     try:
         strips = [make_strip(c, strip_dir, f"clip{i:02d}") for i, c in enumerate(clips, 1)]
-        looks = look_at_clips(clips, strips, ai_model, rep)
+        lights = [light_changes(c) for c in clips]
+        looks = look_at_clips(clips, strips, ai_model, rep, script=script, lights=lights)
     finally:
         shutil.rmtree(strip_dir, ignore_errors=True)
     for c, look in zip(clips, looks):
-        best = (f" · tratto migliore {look.best_from:.1f}–{look.best_to:.1f}s"
+        best = (f" · tratto in cui succede {look.best_from:.1f}–{look.best_to:.1f}s"
                 if look.kind == "broll" else "")
         rep(f"👁 {c.path.name} → {KIND_LABEL[look.kind]}: {look.shows or '—'}{best}")
+        if look.meaning:
+            rep(f"      nel copione: {look.meaning}")
+        if look.light and look.kind == "broll":
+            rep(f"      luminosità misurata: {look.light}")
         rep(f"      perché: {look.why or '—'}")
 
     # 3 — the brief: how this video must be built, read from the texts
@@ -239,6 +286,15 @@ def _run(rep: Report, input_path, name, template, script, model, language,
             rep(f"   ✎ «{quote}» → [{area}] {do}")
     elif script:
         rep("Nel copione non ci sono indicazioni di regia esplicite.")
+    if brief.cut_seconds:
+        rep(f"Ritmo dal copione: ogni taglio della sequenza di immagini dura "
+            f"{brief.cut_seconds:g}s — verrà applicato a tutte le inquadrature di sole immagini.")
+    if brief.music:
+        rep(f"Musica chiesta dal copione: {brief.music}")
+    for what, why in brief.missing:
+        rep(f"⚠ Manca nel materiale: {what} — {why or '—'}")
+    if brief.caption:
+        rep(f"Didascalia del post (non va nel video): {brief.caption}")
     labels = {"cuts": "tagli", "broll": "b-roll", "texts": "testi a schermo", "sounds": "suoni"}
     if brief.guide:
         rep("Consegne per le fasi successive:")
@@ -291,20 +347,45 @@ def _run(rep: Report, input_path, name, template, script, model, language,
     # 5 — the b-roll: over the speech, or as the whole reel
     covers: list[CoverShot] = []
     extras: list[str] = []          # what sits on top of the cut, for the final review
+    todo: list[str] = [f"{what} — {why}" if why else what for what, why in brief.missing]
     if timeline:
-        rep.section("5 · B-ROLL SOPRA IL PARLATO (AI)")
+        rep.section("5 · B-ROLL: DA SOLO E SOPRA IL PARLATO (AI)")
         if broll:
             cp = plan_covers(timeline, broll, topic=topic, model=ai_model, log=rep,
-                             brief=brief)
+                             brief=brief, target_duration=target_duration)
             rep(f"Come l'ha usato: {cp.summary or '—'}")
+            speech_total = timeline[-1].timeline_end
+            last_block = max(ts.keep.block for ts in timeline)
+            shift = lambda t: t
+            if cp.inserts:
+                timeline, shift = weave_inserts(timeline, cp.inserts)
+                for b, start, end, before, why in sorted(cp.inserts, key=lambda i: i[3]):
+                    where = (f"prima del blocco #{before}" if before <= last_block
+                             else "dopo l'ultimo blocco")
+                    rep(f"🎬 INSERTO {where}  [{b.clip.path.name} {start:.1f}–{end:.1f}s · "
+                        f"{end - start:.1f}s] {b.look.shows}")
+                    rep(f"      perché: {why or '—'}")
             for b, start, end, at, why in cp.covers:
+                at_final = shift(at)
+                # a cover never runs over a stand-alone shot that follows its speech
+                room = next((ts.timeline_start - at_final for ts in timeline
+                             if ts.keep.muted and ts.timeline_start > at_final), end - start)
+                end = start + min(end - start, room)
+                if end - start < 0.8:
+                    continue
                 rep(f"🎞 {b.clip.path.name} {start:.1f}–{end:.1f}s sopra il parlato "
-                    f"@ {at:.2f}s ({end - start:.1f}s) — perché: {why or '—'}")
+                    f"@ {at_final:.2f}s ({end - start:.1f}s) — perché: {why or '—'}")
                 covers.append(CoverShot(source=b.clip, src_start=start, src_end=end,
-                                        timeline_start=at, note=b.look.shows))
-                extras.append(f"copertura b-roll @ {at:.1f}s per {end - start:.1f}s: {b.look.shows}")
+                                        timeline_start=at_final, note=b.look.shows))
+                extras.append(f"copertura b-roll @ {at_final:.1f}s per {end - start:.1f}s: {b.look.shows}")
             for cname, why in cp.not_used:
                 rep(f"✘ {cname} non usata — perché: {why or '—'}")
+            if cp.inserts:
+                total = timeline[-1].timeline_end
+                rep("")
+                rep(f"Riepilogo: reel di {total:.1f}s = {speech_total:.1f}s di parlato + "
+                    f"{total - speech_total:.1f}s di sole immagini ({len(cp.inserts)} inserti, "
+                    f"audio originale silenziato).")
         else:
             rep("In questa cartella non ci sono riprese di copertura.")
     elif broll:
@@ -410,6 +491,7 @@ def _run(rep: Report, input_path, name, template, script, model, language,
                 extras += [f"musica di sottofondo «{m}»" for m, keep, _ in sound_plan.music if keep]
                 for sname, why in sound_plan.not_used:
                     rep(f"🔇 «{sname}» non usato — perché: {why or '—'}")
+                todo += sound_plan.todo
             else:
                 sound_plan = SoundPlan()      # still applied: clears the old project's audio
                 rep("Il template non contiene suoni né musica utilizzabili.")
@@ -424,6 +506,8 @@ def _run(rep: Report, input_path, name, template, script, model, language,
         rep("⚠ Il reel non ha audio: le riprese sono silenziate e "
             + ("il template non ha una musica utilizzabile" if template else "non c'è un template")
             + ". Aggiungi una musica in CapCut o scegli un template che ne abbia una.")
+    elif any(ts.keep.muted for ts in timeline) and not has_music and not brief.music:
+        todo.append("Le parti di sole immagini sono senza audio: aggiungi la musica in CapCut.")
 
     # 9 — write the CapCut draft
     rep.section("9 · DRAFT CAPCUT")
@@ -445,11 +529,21 @@ def _run(rep: Report, input_path, name, template, script, model, language,
         rep(f"{len(covers)} coperture b-roll su una traccia video sopra il parlato (mute).")
     rep(f"✓ Draft scritto: {out}")
 
+    # what the script asks for and only a person can add
+    if todo:
+        rep.section("✋ DA FARE A MANO IN CAPCUT")
+        seen: set[str] = set()
+        for item in todo:
+            if item.lower() not in seen:
+                seen.add(item.lower())
+                rep(f"☐ {item}")
+
     # 10 — critique
     if use_ai_review:
         rep.section("10 · RECENSIONE DELL'AI")
         if final_intro:
             extras.insert(0, f"titolo iniziale a schermo «{final_intro}»")
+        extras += [f"da fare a mano dopo (non contarlo come difetto del montato): {t}" for t in todo]
         for line in review(timeline, ai_model, extras, brief=brief).splitlines():
             rep("  " + line)
 

@@ -514,7 +514,7 @@ async function onGenerate() {
     jobId = (await r.json()).job_id;
   } catch (e) {
     appendLine(`ERRORE: il motore dell'app non risponde (${e}). Chiudi tutte le finestre `
-      + "di CapCut Auto e riavvia l'app: di solito ne erano aperte due.", "err");
+      + "di CapWiz e riavvia l'app: di solito ne erano aperte due.", "err");
     finishRun();
     return;
   }
@@ -562,8 +562,8 @@ function classify(line) {
   if (t.startsWith("perché:") || t.startsWith("«")) return "why";
   if (t.startsWith("✂")) return "cut";
   if (t.startsWith("✓")) return "ok";
-  if (t.includes("⚠")) return "warn";
-  if (/^(👁|🎞|🔊|🔇|♪|✚|✎|Titolo iniziale|Argomento|Come l|Soglia|Regia|Formato|Tono|Struttura|Indicazioni|Consegne|Sottotitoli:|📄)/u.test(t)) return "ai";
+  if (t.includes("⚠") || t.startsWith("☐")) return "warn";
+  if (/^(👁|🎞|🔊|🔇|♪|✚|✎|Titolo iniziale|Argomento|Come l|Soglia|Regia|Formato|Tono|Struttura|Indicazioni|Consegne|Ritmo dal copione|Musica chiesta|Didascalia|🎬|Sottotitoli:|📄)/u.test(t)) return "ai";
   return "";
 }
 
@@ -708,25 +708,25 @@ async function runAiTest() {
 
 async function getToken() {
   if (window.api && window.api.getToken) return window.api.getToken();
-  return localStorage.getItem("capcut_token");
+  return localStorage.getItem("capwiz_token");
 }
 async function setToken(t) {
   state.authToken = t;
   if (window.api && window.api.setToken) return window.api.setToken(t);
-  localStorage.setItem("capcut_token", t);
+  localStorage.setItem("capwiz_token", t);
 }
 async function clearToken() {
   state.authToken = null;
   if (window.api && window.api.clearToken) return window.api.clearToken();
-  localStorage.removeItem("capcut_token");
+  localStorage.removeItem("capwiz_token");
 }
 
 function cacheActive(active) {
-  localStorage.setItem("capcut_sub", JSON.stringify({ active, ts: Date.now() }));
+  localStorage.setItem("capwiz_sub", JSON.stringify({ active, ts: Date.now() }));
 }
 function cachedGraceOk() {
   try {
-    const c = JSON.parse(localStorage.getItem("capcut_sub") || "{}");
+    const c = JSON.parse(localStorage.getItem("capwiz_sub") || "{}");
     if (!c.active) return false;
     return (Date.now() - c.ts) < OFFLINE_GRACE_DAYS * 86400 * 1000;
   } catch (_) { return false; }
@@ -859,7 +859,7 @@ async function doManageBilling() {
 async function doLogout() {
   await clearToken();
   state.email = null;
-  localStorage.removeItem("capcut_sub");
+  localStorage.removeItem("capwiz_sub");
   showView("auth");
 }
 

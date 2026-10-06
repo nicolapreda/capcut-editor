@@ -11,7 +11,7 @@ class Settings:
     JWT_TTL_DAYS: int = int(os.environ.get("JWT_TTL_DAYS", "30"))
 
     # Database — sqlite for dev, Postgres (DATABASE_URL) in prod
-    DATABASE_URL: str = os.environ.get("DATABASE_URL", "sqlite:///./capcut_cloud.db")
+    DATABASE_URL: str = os.environ.get("DATABASE_URL", "sqlite:///./capwiz_cloud.db")
 
     # Stripe
     STRIPE_SECRET_KEY: str = os.environ.get("STRIPE_SECRET_KEY", "")

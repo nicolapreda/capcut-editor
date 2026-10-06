@@ -10,8 +10,8 @@ const BACKEND_PORT = 8765;
 const BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}`;
 
 // Cloud licensing backend (accounts + Stripe subscription check).
-// Override with CAPCUT_CLOUD_URL; defaults to local dev server.
-const CLOUD_URL = process.env.CAPCUT_CLOUD_URL || "http://127.0.0.1:8799";
+// Override with CAPWIZ_CLOUD_URL; defaults to local dev server.
+const CLOUD_URL = process.env.CAPWIZ_CLOUD_URL || "http://127.0.0.1:8799";
 
 let pyProc = null;
 let mainWindow = null;
@@ -55,13 +55,13 @@ function devPythonPath() {
 function startBackend() {
   if (app.isPackaged) {
     // Packaged sidecar (PyInstaller onefile) lives in resources/backend/
-    const exe = process.platform === "win32" ? "capcut-auto-server.exe" : "capcut-auto-server";
+    const exe = process.platform === "win32" ? "capwiz-server.exe" : "capwiz-server";
     const bin = path.join(process.resourcesPath, "backend", exe);
     pyProc = spawn(bin, ["--port", String(BACKEND_PORT)], { env: { ...process.env } });
   } else {
     pyProc = spawn(
       devPythonPath(),
-      ["-m", "capcut_auto.server", "--port", String(BACKEND_PORT)],
+      ["-m", "capwiz.server", "--port", String(BACKEND_PORT)],
       { cwd: repoRoot(), env: { ...process.env } }
     );
   }
@@ -77,7 +77,7 @@ function startBackend() {
       "Il motore dell'app si è fermato",
       `Il backend Python non è in esecuzione (codice ${code}).\n\n` +
         `Di solito succede quando la porta ${BACKEND_PORT} è occupata da un'altra copia ` +
-        "dell'app rimasta aperta. Chiudi tutte le finestre di CapCut Auto e riavvia.\n\n" +
+        "dell'app rimasta aperta. Chiudi tutte le finestre di CapWiz e riavvia.\n\n" +
         "I dettagli sono nel terminale da cui hai lanciato l'app."
     );
   });
@@ -98,6 +98,8 @@ async function waitForBackend(timeoutMs = 60000) {
   return false;
 }
 
+const APP_ICON = path.join(__dirname, "..", "renderer", "logo.png");
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1120,
@@ -105,6 +107,7 @@ function createWindow() {
     minWidth: 940,
     minHeight: 720,
     backgroundColor: "#0e0f13",
+    icon: APP_ICON,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -117,6 +120,8 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   if (!app.hasSingleInstanceLock()) return;
+  // Unpackaged, the dock would show Electron's own icon.
+  if (process.platform === "darwin" && !app.isPackaged) app.dock.setIcon(APP_ICON);
   startBackend();
   createWindow();
 

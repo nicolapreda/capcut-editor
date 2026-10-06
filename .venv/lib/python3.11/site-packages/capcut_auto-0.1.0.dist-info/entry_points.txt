@@ -1,3 +1,0 @@
-[console_scripts]
-capcut-auto = capcut_auto.cli:main
-capcut-auto-gui = capcut_auto.gui:main

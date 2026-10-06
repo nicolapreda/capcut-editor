@@ -1,23 +1,31 @@
-# capcut-auto
+<p align="center"><img src="assets/logo.png" alt="CapWiz" width="220"></p>
+
+# CapWiz
 
 Generatore automatico di progetti CapCut per video social brevi.
 Da una cartella di video genera un draft già pronto. **Il montaggio lo decide Claude**:
 Whisper trascrive, poi l'AI sceglie ogni cosa e spiega perché.
 
-- **guarda ogni clip** — da una striscia di fotogrammi e dall'audio capisce se è
-  parlato rivolto al pubblico, b-roll (riprese di copertura) o uno scarto
-- **regia** — prima di tagliare legge i testi: il copione (comprese le indicazioni
-  di regia: «b-roll di…», «testo a schermo: …», «musica»), il parlato del
-  girato e il video del template (i suoi sottotitoli, i testi a schermo, come usa i
-  suoni). Da lì decide formato, tono, struttura e una consegna per ogni fase; tutte
-  le decisioni successive la seguono
+- **guarda ogni clip** — dai fotogrammi, dall'audio e dalla luminosità misurata sul
+  video capisce se è parlato rivolto al pubblico, b-roll o uno scarto; con un
+  copione, a quale punto del copione corrisponde ogni ripresa («tapparelle su»,
+  «luci accese»…) e in quale tratto l'azione accade davvero
+- **regia** — prima di tagliare legge i testi: il copione, il parlato del girato e
+  il video del template (i suoi sottotitoli, i testi a schermo, come usa i suoni).
+  Da lì decide formato, tono, struttura e una consegna per ogni fase. Le
+  indicazioni del copione sono **vincolanti**: quali riprese e in che ordine, la
+  durata dei tagli («CUT da 0,5s» → ogni taglio dura 0,5s), la musica, i suoni, i
+  testi a schermo. Ciò che il copione chiede e il materiale non ha (una ripresa
+  mancante, l'audio del trend, un suono) finisce nell'elenco «DA FARE A MANO IN
+  CAPCUT» in fondo al log
 - **cosa tenere e cosa scartare** — dietro le quinte ("vai", "rifacciamo", "3 2 1"),
   frasi fuori tema, retake e ripetizioni (anche tra clip diverse), false partenze,
   filler, errori; legge insieme tutte le clip del progetto
-- **b-roll** — se qualcuno parla, il b-roll va sopra le frasi che illustra, su una
-  traccia video muta; se non parla nessuno, l'AI costruisce un montaggio solo
-  visivo (ordine, tratto e durata di ogni inquadratura). Parlato e b-roll possono
-  stare nella stessa cartella
+- **b-roll** — se qualcuno parla, l'AI decide per ogni ripresa se va da sola a
+  tutto schermo tra un blocco di parlato e l'altro (apertura, sequenze a tagli
+  rapidi, stacchi) oppure sopra le frasi che illustra, su una traccia video muta;
+  se non parla nessuno, costruisce un montaggio solo visivo (ordine, tratto e
+  durata di ogni inquadratura). Parlato e b-roll possono stare nella stessa cartella
 - **silenzi** — l'AI sceglie la soglia di pausa per il parlante e il ritmo; ogni
   silenzio tagliato viene registrato
 - **testi** — titolo iniziale e testi di enfasi solo dove servono
@@ -34,7 +42,7 @@ Whisper trascrive, poi l'AI sceglie ogni cosa e spiega perché.
 Serve il CLI `claude` loggato (`claude` → `/login`) oppure `ANTHROPIC_API_KEY`.
 
 Ogni scelta viene scritta nel log con il motivo e salvata in un **report Markdown**
-(con la trascrizione annotata) in `~/Library/Application Support/CapCutAuto/reports/`.
+(con la trascrizione annotata) in `~/Library/Application Support/CapWiz/reports/`.
 
 ## Setup
 
@@ -50,7 +58,7 @@ altrimenti il software usa il filtro `deshake` integrato.
 ## GUI
 
 ```bash
-.venv/bin/capcut-auto-gui
+.venv/bin/capwiz-gui
 ```
 
 Finestra a 4 tab:
@@ -66,14 +74,14 @@ Finestra a 4 tab:
 
 ```bash
 # minimo
-.venv/bin/capcut-auto /path/cartella --name "Reel 23"
+.venv/bin/capwiz /path/cartella --name "Reel 23"
 
 # con template + ritmo serrato + durata target
-.venv/bin/capcut-auto /path/cartella --name "Reel 23" \
+.venv/bin/capwiz /path/cartella --name "Reel 23" \
   --template "COSA COMPRO CON 200K" --pacing fast --ai-target-duration 30
 
 # modello Claude più accurato, copione di riferimento
-.venv/bin/capcut-auto /path/cartella --name "Reel 23" \
+.venv/bin/capwiz /path/cartella --name "Reel 23" \
   --template "COSA COMPRO CON 200K" --ai-model opus --script copione.docx
 ```
 
@@ -115,7 +123,7 @@ desktop/                    # guscio Electron
     └── app.js              # parla col backend via REST + WebSocket
 ```
 
-Il backend è un server **FastAPI** ([server.py](src/capcut_auto/server.py)) che avvolge
+Il backend è un server **FastAPI** ([server.py](src/capwiz/server.py)) che avvolge
 il pipeline esistente ed espone:
 - `GET /api/health` · `GET /api/system` · `GET /api/templates`
 - `POST /api/generate` → avvia un job, ritorna `job_id`
@@ -141,7 +149,7 @@ nome della sottocartella (con un prefisso opzionale). Endpoint:
 ### Schermate
 
 - **Home** — griglia dei progetti creati dal programma (registro in
-  [registry.py](src/capcut_auto/registry.py), salvato in app-data). Ogni card ha
+  [registry.py](src/capwiz/registry.py), salvato in app-data). Ogni card ha
   *Apri* (in Finder/Explorer) e *Duplica*.
 - **Duplica** — riapre l'editor pre-riempito con tutte le impostazioni del
   progetto: basta cambiare le clip / qualche preferenza e rigenerare.
@@ -177,7 +185,7 @@ impacchettata userà un sidecar PyInstaller in `resources/backend/` (da fare).
 ## Architettura Python
 
 ```
-src/capcut_auto/
+src/capwiz/
 ├── cli.py          # entry point CLI (click)
 ├── gui.py          # entry point GUI (customtkinter)
 ├── pipeline.py     # orchestrator: AI check → transcribe → AI looks at clips → AI brief → AI edit / b-roll → subtitles → AI texts/sounds → draft → AI review

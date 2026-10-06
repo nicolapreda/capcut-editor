@@ -191,7 +191,8 @@ def materialize(
                 end = min(clip.duration, gws[-1].end + tail_pad)
                 if end - start < 0.08:
                     continue
-                k = KeepInterval(source=clip, src_start=start, src_end=end, words=list(gws))
+                k = KeepInterval(source=clip, src_start=start, src_end=end, words=list(gws),
+                                 block=keep_no)
                 timeline.append(TimelineSegment(keep=k, timeline_start=cursor,
                                                 timeline_end=cursor + k.duration))
                 cursor += k.duration
