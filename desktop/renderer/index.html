@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; connect-src http://127.0.0.1:8765 ws://127.0.0.1:8765 http://127.0.0.1:8799 https:; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+  <title>CapCut Auto</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">CapCut <span>Auto</span></div>
+    <div class="spacer"></div>
+    <span class="tb-email" id="tb-email" hidden></span>
+    <button class="btn-link" id="tb-account" hidden>Gestisci abbonamento</button>
+    <button class="btn-link" id="tb-logout" hidden>Esci</button>
+    <div class="pill" id="pill-ffmpeg"><span class="dot"></span> ffmpeg</div>
+    <div class="pill" id="pill-ai"><span class="dot"></span> AI</div>
+    <div class="pill" id="pill-backend"><span class="dot"></span> backend</div>
+  </div>
+
+  <!-- ==================== LOGIN ==================== -->
+  <div id="view-auth" class="view gate-view" hidden>
+    <div class="gate-card">
+      <div class="gate-logo">CapCut <span>Auto</span></div>
+      <h2 id="auth-title">Accedi</h2>
+      <input type="text" id="auth-email" placeholder="Email" autocomplete="username" />
+      <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" />
+      <div class="gate-error" id="auth-error"></div>
+      <button class="btn-primary-sm gate-btn" id="auth-submit">Accedi</button>
+      <div class="gate-switch">
+        <span id="auth-switch-text">Non hai un account?</span>
+        <button class="btn-link" id="auth-switch">Registrati</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SUBSCRIBE ==================== -->
+  <div id="view-subscribe" class="view gate-view" hidden>
+    <div class="gate-card">
+      <div class="gate-logo">CapCut <span>Auto</span></div>
+      <h2>Abbonamento richiesto</h2>
+      <p class="gate-text">Per usare CapCut Auto serve un abbonamento attivo.</p>
+      <div class="gate-info" id="sub-info"></div>
+      <button class="btn-primary-sm gate-btn" id="btn-subscribe">Abbonati</button>
+      <button class="btn-secondary gate-btn" id="btn-recheck">Ho già pagato — ricontrolla</button>
+      <button class="btn-link" id="btn-logout-sub">Esci</button>
+    </div>
+  </div>
+
+  <!-- ==================== HOME ==================== -->
+  <div id="view-home" class="view view-scroll">
+    <div class="home-header">
+      <div>
+        <h1>I tuoi progetti</h1>
+        <p class="home-sub">Progetti creati con CapCut Auto — apri o duplica con un click.</p>
+      </div>
+      <div class="home-actions">
+        <button class="btn-secondary" id="btn-config-ai">⚙&nbsp; Configura AI</button>
+        <button class="btn-primary-sm" id="btn-new">+&nbsp; Nuovo progetto</button>
+      </div>
+    </div>
+
+    <div id="projects-grid" class="projects-grid"></div>
+
+    <div id="projects-empty" class="empty-state" hidden>
+      <div class="empty-icon">🎬</div>
+      <h3>Nessun progetto ancora</h3>
+      <p>Crea il tuo primo reel: scegli una cartella di video e un template.</p>
+      <button class="btn-primary-sm" id="btn-new-empty">+&nbsp; Nuovo progetto</button>
+    </div>
+  </div>
+
+  <!-- ==================== EDITOR ==================== -->
+  <div id="view-editor" class="view" hidden>
+    <div class="editor-topnav">
+      <button class="link-back" id="btn-back">←&nbsp; Progetti</button>
+      <span class="editor-title" id="editor-title">Nuovo progetto</span>
+    </div>
+
+    <div class="layout">
+      <!-- FORM -->
+      <div class="form-pane">
+        <div class="card">
+          <h2>Sorgente & progetto</h2>
+          <div class="switch-row" style="padding-top:0;">
+            <div class="switch-label">Modalità blocco — un progetto per ogni sottocartella</div>
+            <div class="switch" id="sw-batch"></div>
+          </div>
+          <div class="hint" style="margin-bottom:12px;">
+            Scegli una cartella madre: ogni sottocartella con video diventa un progetto,
+            tutti con questo template e queste preferenze.
+          </div>
+          <div class="row">
+            <label class="field-label" id="src-label">Cartella video o singolo file</label>
+            <div class="input-with-btn">
+              <input type="text" id="input-path" placeholder="Nessuna sorgente selezionata" />
+              <button class="btn-secondary" id="btn-folder">Cartella…</button>
+              <button class="btn-secondary" id="btn-video">File…</button>
+            </div>
+            <div class="hint" id="batch-preview" hidden></div>
+          </div>
+          <div class="row">
+            <label class="field-label" id="name-label">Nome progetto</label>
+            <input type="text" id="name" placeholder="es. Reel 23 maggio" />
+          </div>
+          <div class="row">
+            <label class="field-label">Template CapCut</label>
+            <select id="template"></select>
+            <div class="hint">Musica, SFX e stile sottotitoli vengono ereditati dal template.</div>
+          </div>
+          <div class="row">
+            <label class="field-label">Titolo iniziale (opzionale)</label>
+            <input type="text" id="intro-title" placeholder="es. CASA INVASA — sostituisce i titoli del template" />
+          </div>
+          <div class="row">
+            <label class="field-label">Copione (opzionale)</label>
+            <div class="input-with-btn">
+              <input type="text" id="script-path" placeholder="txt, md o docx — l'AI lo usa per capire cosa è fuori copione" />
+              <button class="btn-secondary" id="btn-script">Sfoglia…</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Ritmo & sottotitoli</h2>
+          <div class="row">
+            <label class="field-label">Ritmo (indicazione per l'AI)</label>
+            <div class="segmented" id="pacing">
+              <button data-val="normal">normal</button>
+              <button data-val="fast" class="active">fast</button>
+              <button data-val="aggressive">aggressive</button>
+            </div>
+            <div class="hint" id="pacing-hint"></div>
+          </div>
+          <div class="switch-row"><div class="switch-label">Sottotitoli come quelli del template (stile, lunghezza delle frasi, maiuscole)</div><div class="switch on" id="sw-sub-template"></div></div>
+          <div class="hint" id="sub-hint">Ogni sottotitolo è una copia esatta di uno del template: stesso modello di testo, animazione, effetto, font e posizione.</div>
+          <div class="row slider-row sub-manual">
+            <label class="field-label">Parole per sottotitolo</label>
+            <input type="range" id="sub-words" min="2" max="8" step="1" value="4" />
+            <div class="slider-val" id="sub-words-val">4</div>
+          </div>
+          <div class="row slider-row sub-manual">
+            <label class="field-label">Durata max sottotitolo</label>
+            <input type="range" id="sub-dur" min="0.8" max="3.0" step="0.1" value="1.4" />
+            <div class="slider-val" id="sub-dur-val">1.4 s</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Montatore AI (Claude)</h2>
+            <button class="btn-link" id="btn-ai-wizard-inline">Configura…</button>
+          </div>
+          <div class="ai-status" id="ai-status">Verifico il collegamento a Claude…</div>
+          <div class="card-note">
+            Claude decide cosa tenere, cosa è dietro le quinte o fuori tema, quali
+            silenzi e ripetizioni tagliare, dove mettere suoni e testi. Ogni scelta
+            è spiegata nel log e nel report. Senza Claude collegato non si genera.
+          </div>
+          <div class="row slider-row">
+            <label class="field-label">Modello</label>
+            <select id="ai-model" style="flex:1;">
+              <option value="sonnet" selected>Sonnet — veloce e preciso (consigliato)</option>
+              <option value="opus">Opus — massima qualità, più lento</option>
+              <option value="haiku">Haiku — il più rapido, meno accurato</option>
+            </select>
+          </div>
+          <div class="row slider-row">
+            <label class="field-label">Durata target reel</label>
+            <select id="ai-target" style="flex:1;">
+              <option value="auto">decide l'AI</option>
+              <option value="15">15 s</option><option value="20">20 s</option>
+              <option value="30">30 s</option><option value="45">45 s</option>
+              <option value="60">60 s</option><option value="90">90 s</option>
+            </select>
+          </div>
+          <div class="switch-row"><div class="switch-label">Recensione finale del montato</div><div class="switch on" id="sw-ai-review"></div></div>
+        </div>
+
+        <div class="card">
+          <h2>Preferenze per l'AI</h2>
+          <div class="switch-row"><div class="switch-label">Togli gli intercalari (ehm, uhm, ah…)</div><div class="switch on" id="sw-fillers"></div></div>
+          <div class="switch-row"><div class="switch-label">Togli anche cioè/tipo/diciamo (aggressivo)</div><div class="switch" id="sw-aggr"></div></div>
+          <div class="switch-row"><div class="switch-label">Suoni del template decisi dall'AI (dove e se usarli)</div><div class="switch on" id="sw-sfx"></div></div>
+          <div class="divider"></div>
+          <div class="switch-row"><div class="switch-label">Rimuovi i testi residui del template (3,2,1 vai…)</div><div class="switch on" id="sw-clear"></div></div>
+          <div class="switch-row"><div class="switch-label">Stabilizza le clip (ffmpeg)</div><div class="switch" id="sw-stab"></div></div>
+        </div>
+
+        <div class="card">
+          <h2>Output</h2>
+          <div class="row">
+            <label class="field-label">Modello Whisper</label>
+            <select id="model">
+              <option value="tiny">tiny (veloce, bozza)</option>
+              <option value="base">base</option>
+              <option value="small">small</option>
+              <option value="medium">medium</option>
+              <option value="large-v3" selected>large-v3 (max accuratezza)</option>
+            </select>
+            <div class="hint" id="model-hint"></div>
+          </div>
+          <div class="row">
+            <label class="field-label">Lingua</label>
+            <select id="language">
+              <option value="it" selected>it</option>
+              <option value="en">en</option><option value="es">es</option>
+              <option value="fr">fr</option><option value="de">de</option><option value="pt">pt</option>
+            </select>
+          </div>
+          <div class="row">
+            <label class="field-label">Formato</label>
+            <div class="segmented" id="format">
+              <button data-val="vertical" class="active">vertical</button>
+              <button data-val="horizontal">horizontal</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <button class="btn-primary" id="btn-generate" disabled>GENERA PROGETTO</button>
+        </div>
+      </div>
+
+      <!-- CONSOLE -->
+      <div class="console-pane">
+        <div class="console-header">
+          <h3>Log</h3>
+          <div class="status-tag" id="status-tag">in attesa</div>
+        </div>
+        <div class="console-body" id="console">
+          <div class="console-empty">Il log della generazione apparirà qui.</div>
+        </div>
+        <div class="console-footer">
+          <div class="result-box" id="result-box">
+            <div class="result-title" id="result-title">✓ Progetto creato</div>
+            <div class="result-path" id="result-path"></div>
+            <div class="result-actions">
+              <button id="btn-report">Leggi il report delle decisioni</button>
+              <button id="btn-open" class="btn-ghost">Apri cartella in Finder</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== AI WIZARD ==================== -->
+  <div id="ai-wizard" class="modal-overlay" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Configurazione AI</h2>
+        <button class="modal-close" id="wizard-close">✕</button>
+      </div>
+      <div class="wizard-steps">
+        <div class="wizard-step" data-step="1"><span class="step-num">1</span> Stato</div>
+        <div class="wizard-step" data-step="2"><span class="step-num">2</span> Setup</div>
+        <div class="wizard-step" data-step="3"><span class="step-num">3</span> Test</div>
+      </div>
+
+      <div class="modal-body">
+        <!-- STEP 1: status -->
+        <div class="wizard-pane" data-pane="1">
+          <div id="ai-status-box" class="status-block">Controllo in corso…</div>
+          <p class="wizard-text">
+            Il montaggio lo fa <strong>Claude</strong>: decide i tagli, i silenzi, il dietro le
+            quinte, i suoni e i testi, e spiega ogni scelta. <strong>Senza Claude collegato
+            l'app non genera.</strong> Serve un accesso a Claude, in uno dei due modi del passo
+            successivo.
+          </p>
+        </div>
+
+        <!-- STEP 2: setup -->
+        <div class="wizard-pane" data-pane="2" hidden>
+          <div class="setup-option">
+            <h4>Opzione A — Claude Code CLI <span class="badge">consigliato</span></h4>
+            <p class="wizard-text">Usa il tuo login di Claude Code, nessuna API key da gestire.</p>
+            <div class="code-box">npm install -g @anthropic-ai/claude-code</div>
+            <p class="wizard-text">Poi autenticati una volta: apri un terminale, lancia
+              <strong>claude</strong> ed esegui <strong>/login</strong>.</p>
+          </div>
+          <div class="setup-option">
+            <h4>Opzione B — API key Anthropic</h4>
+            <p class="wizard-text">Imposta la variabile d'ambiente prima di aprire l'app:</p>
+            <div class="code-box">export ANTHROPIC_API_KEY="sk-ant-…"</div>
+          </div>
+          <p class="wizard-hint">Dopo aver configurato, torna al passo 3 e premi “Testa connessione”.</p>
+        </div>
+
+        <!-- STEP 3: test -->
+        <div class="wizard-pane" data-pane="3" hidden>
+          <p class="wizard-text">Verifica che Claude risponda davvero:</p>
+          <button class="btn-secondary" id="btn-ai-test">Testa connessione</button>
+          <div id="ai-test-result" class="test-result"></div>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn-secondary" id="wizard-prev" hidden>Indietro</button>
+        <div class="spacer"></div>
+        <button class="btn-primary-sm" id="wizard-next">Avanti</button>
+        <button class="btn-primary-sm" id="wizard-done" hidden>Fine</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
